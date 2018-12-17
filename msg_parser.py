@@ -19,12 +19,13 @@ class MsgParser:
                 print('Failed to load json: ', msg)
                 return None
         except:
+            print(msgBytes.decode('utf-8'))
             traceback.print_exc()
             return None
 
     @classmethod
     def buildRedirectMsg(cls, newAddr):
-        msg = {'type': 'redirect', 'addr': newAddr}
+        msg = {'type': 'redirect', 'parent_node': newAddr}
         msg = json.dumps(msg)
         return msg
 

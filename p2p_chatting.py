@@ -55,15 +55,21 @@ class P2pChatting(object):
             self.client.sendMsg(msg)
         if self.server:
             self.server.sendMsg(msg)
-
+    '''
     def onNewConnection(self, addr, name):
         if self.is_chairman:
             redirect, newAddr = self._allocParentNode(addr)
             if redirect:
                 self.server.redirect(addr, name, newAddr)
+    '''
 
-    def _allocParentNode(self, addr):
-        return False, None
+    def removeMember(self, addr):
+        ip, port = addr
+        for name, info in self.members.items():
+            if info['ip'] == ip and info['port'] == port:
+                del self.members[name]
+                print('Member {} removed'.format(name))
+                return
 
     def sendToUpperlayer(self, msg):
         self.msgHandler(msg['name'] + ' : ' + msg['chat'])
@@ -76,7 +82,41 @@ class P2pChatting(object):
         self.server.sendMsg(msg)
 
     def onCtrlMsg(self, msg, addr):
-        pass
+        if msg['type'] == 'join':
+            self.onJoinMsg(msg, addr)
+        elif msg['type'] == 'redirect':
+            self.onRedirectMsg(msg, addr)
+        else:
+            print(msg, addr)
+
+    def onRedirectMsg(self, msg, addr):
+        self.addr = msg['parent_node']
+        print('stopping')
+        self.client.setServer(self.addr, PORT_NUM)
+        self.client.connectServer()
+        print('Client reconnect to {}'.format(self.addr))
+
+    def onJoinMsg(self, msg, addr):
+        if not self.is_chairman:
+            return
+        ip, port = addr
+        welcome = msg['name'] + ' has joined the chatting, welcome!'
+        self.msgHandler(welcome)
+        self.broadcastMsg(welcome)
+        parentName, parentIP = self._allocParentNode(ip)
+        self.members[msg['name']] = {'ip': ip, 'port': port}
+        if parentIP:
+            print('Redirect', msg['name'], 'to', parentName)
+            time.sleep(2)
+            self.server.redirect(addr, name, parentIP)
+
+    def _allocParentNode(self, ip):
+        ip = ip.split('.')
+        for name, info in self.members.items():
+            addr = info['ip'].split('.')
+            if ip[0] == addr[0] and ip[1] == addr[1] and ip[2] == addr[2]:
+                return name, info['ip']
+        return None, None
 
 
 class TestMsgHandler:

@@ -1,3 +1,4 @@
+import json
 import os
 import socket
 import select
@@ -17,51 +18,71 @@ class ChattingClient:
         self.serverPort = server_port
         self.msgHandler = msgHandler
 
-        r, w = os.pipe()
-        self.r, self.w = r, w
-        self.pipeIn = os.fdopen(r)
-        self.pipeOut = os.fdopen(w, 'w')
+        self.r, self.w = None, None
+        #self.pipeIn = os.fdopen(r)
+        #self.pipeOut = os.fdopen(w, 'w')
         self.parser = MsgParser()
-        self.thread = threading.Thread(target=self._start)
+        self.thread = None
         self.run = True
+        self.running = False
 
     def setServer(self, ip, port):
-        pass
+        self.serverIp = ip
+        self.serverPort = port
 
-    def start(self):
-        self.thread.start()
-        joinMsg = self.parser.buildJoinMsg(self.name)
-        self.sendMsg(joinMsg)
-
-    def _start(self):
+    def connectServer(self):
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.connect((self.serverIp, self.serverPort))
         self.server = server
 
+        joinMsg = self.parser.buildJoinMsg(self.name)
+        self.sendMsg(joinMsg)
+
+    def start(self):
+        #while self.r:
+        #    time.sleep(1)
+        print('Starting client!')
+        #r, w = os.pipe()
+        #self.r, self.w = r, w
+        self.connectServer()
+        self.thread = threading.Thread(target=self._start)
+        self.thread.start()
+
+    def _start(self):
+        self.running = True
         while self.run:
-            sockets_list = [server, self.r]
+            # print('.')
+            sockets_list = [self.server]
             read_sockets, write_socket, error_socket = select.select(
                 sockets_list, [], [], 1)
+            # print('-')
             for socks in read_sockets:
-                if socks == server:
+                if socks == self.server:
                     message = socks.recv(2048)
                     #print(message)
                     msg = self.parser.parse(message)
                     if msg:
                         print('Client received msg:', msg)
                         self.onRcvdMsg(msg)
+                    ''''''
                 else:
                     buffer = os.read(socks, 200)
                     print('send msg', buffer.decode())
-                    server.send(buffer)
+                    self.server.send(buffer)
+
+        print('client stopping!')
         self.server.close()
+        self.running = False
 
     def stop(self):
         self.run = False
 
+    def isRunning(self):
+        return self.running
+
     def sendMsg(self, msg):
-        self.pipeOut.write(msg)
-        os.write(self.w, msg.encode())
+        msg = json.dumps(msg)
+        self.server.send(msg.encode())
 
     def onRcvdMsg(self, msg):
         if msg['type'] == 'chat':

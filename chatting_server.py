@@ -76,6 +76,7 @@ class ChattingServer:
 
     def remove(self, connection):
         if connection in self.connections:
+            self.msgHandler.removeMember(self.connections[connection]['addr'])
             del self.connections[connection]
 
     def stop(self):
@@ -84,16 +85,20 @@ class ChattingServer:
     def sendMsg(self, msg):
         self.broadcast(msg, None)
 
-    def redirect(self, conn, newAddr):
-        msg = MsgParser.buildRedirectMsg(newAddr)
-        conn.send(msg)
+    def redirect(self, addr, name, newAddr):
+        # print(addr, self.connections)
+        for conn, info in self.connections.items():
+            if info['addr'] == addr:
+                msg = MsgParser.buildRedirectMsg(newAddr)
+                conn.send(msg.encode())
+                # print('Redirect msg sent!')
 
     def onRcvdMsg(self, msg, conn):
         if msg['type'] == 'chat':
             self.msgHandler.sendToUpperlayer(msg)
             self.broadcast(msg, conn)
         else:
-            self.msgHandler.onCtrlMsg(msg, self.connections[conn])
+            self.msgHandler.onCtrlMsg(msg, self.connections[conn]['addr'])
 
 
 class TestMsgHandler:
