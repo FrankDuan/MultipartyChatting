@@ -18,9 +18,6 @@ class ChattingClient:
         self.serverPort = server_port
         self.msgHandler = msgHandler
 
-        self.r, self.w = None, None
-        #self.pipeIn = os.fdopen(r)
-        #self.pipeOut = os.fdopen(w, 'w')
         self.parser = MsgParser()
         self.thread = None
         self.run = True
@@ -39,11 +36,7 @@ class ChattingClient:
         self.sendMsg(joinMsg)
 
     def start(self):
-        #while self.r:
-        #    time.sleep(1)
         print('Starting client!')
-        #r, w = os.pipe()
-        #self.r, self.w = r, w
         self.connectServer()
         self.thread = threading.Thread(target=self._start)
         self.thread.start()
@@ -51,24 +44,17 @@ class ChattingClient:
     def _start(self):
         self.running = True
         while self.run:
-            # print('.')
             sockets_list = [self.server]
             read_sockets, write_socket, error_socket = select.select(
                 sockets_list, [], [], 1)
-            # print('-')
-            for socks in read_sockets:
-                if socks == self.server:
-                    message = socks.recv(2048)
-                    #print(message)
-                    msg = self.parser.parse(message)
-                    if msg:
-                        print('Client received msg:', msg)
-                        self.onRcvdMsg(msg)
-                    ''''''
-                else:
-                    buffer = os.read(socks, 200)
-                    print('send msg', buffer.decode())
-                    self.server.send(buffer)
+
+            if not read_sockets:
+                continue
+            message = read_sockets[0].recv(2048)
+            msg = self.parser.parse(message)
+            if msg:
+                #print('Client received msg:', msg)
+                self.onRcvdMsg(msg)
 
         print('client stopping!')
         self.server.close()

@@ -49,7 +49,7 @@ class ChattingServer:
                 if data:
                     msg = self.connections[conn]['parser'].parse(data)
                     if msg:
-                        print('Server received msg:', msg)
+                        # print('Server received msg:', msg)
                         self.onRcvdMsg(msg, conn)
                 else:
                     self.remove(conn)

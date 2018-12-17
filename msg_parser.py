@@ -40,3 +40,9 @@ class MsgParser:
         msg = {'type': 'chat', 'name': name, 'chat': chat}
         msg = json.dumps(msg)
         return msg
+
+    @classmethod
+    def buildLeaveMsg(cls, name):
+        msg = {'type': 'leave', 'name': name}
+        msg = json.dumps(msg)
+        return msg

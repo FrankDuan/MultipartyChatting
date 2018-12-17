@@ -86,8 +86,16 @@ class P2pChatting(object):
             self.onJoinMsg(msg, addr)
         elif msg['type'] == 'redirect':
             self.onRedirectMsg(msg, addr)
+        elif msg['type'] == 'leave':
+            self.onLeaveMsg(msg, addr)
         else:
             print(msg, addr)
+
+    def onLeaveMsg(self, msg, addr):
+        name = msg['name']
+        self.msgHandler(name + ' is leaving, bye!')
+        if name in self.members:
+            del self.members[name]
 
     def onRedirectMsg(self, msg, addr):
         self.addr = msg['parent_node']
@@ -101,14 +109,13 @@ class P2pChatting(object):
             return
         ip, port = addr
         welcome = msg['name'] + ' has joined the chatting, welcome!'
-        self.msgHandler(welcome)
         self.broadcastMsg(welcome)
         parentName, parentIP = self._allocParentNode(ip)
         self.members[msg['name']] = {'ip': ip, 'port': port}
         if parentIP:
             print('Redirect', msg['name'], 'to', parentName)
             time.sleep(2)
-            self.server.redirect(addr, name, parentIP)
+            self.server.redirect(addr, msg['name'], parentIP)
 
     def _allocParentNode(self, ip):
         ip = ip.split('.')
@@ -118,6 +125,19 @@ class P2pChatting(object):
                 return name, info['ip']
         return None, None
 
+    def leave(self):
+        if self.is_chairman:
+            return
+
+        if self.client:
+            leaveMsg = MsgParser.buildLeaveMsg(self.my_name)
+            self.client.sendMsg(leaveMsg)
+        time.sleep(1)
+
+        if self.server:
+            redirectMsg = MsgParser.buildRedirectMsg(self.addr)
+            self.server.sendMsg(redirectMsg)
+        time.sleep(3)
 
 class TestMsgHandler:
     def OnRecvedMsg(self, msg):
@@ -140,9 +160,12 @@ if __name__ == '__main__':
     print('Input your msg:')
     while True:
         data = sys.stdin.readline().strip()
-        if data != 'exit' and data != 'quit':
-            chatting.broadcastMsg(data)
-        else:
+        if data == 'exit' or data == 'quit':
             break
+        elif data == 'leave' or data == 'Leave':
+            chatting.leave()
+            break
+        else:
+            chatting.broadcastMsg(data)
     print('Ending!')
     chatting.stop()
